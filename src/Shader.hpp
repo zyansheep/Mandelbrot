@@ -1,159 +1,88 @@
-#include <glad/glad.h> // include glad to get all the required OpenGL headers
-
-#include <string>
-#include <fstream>
-#include <sstream>
 #include <iostream>
+
+#include <vector>
+
+#include "Functions.hpp"
+
+#pragma once
 
 class Shader {
 public:
-  unsigned int ID;
-  Shader(std::string vertPath, std::string fragPath){
-    // Create the shaders
-    GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-    GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+  Shader(){};
+  Shader(const std::string& vertexPath, const std::string& fragmentPath){
+    std::string VertexShaderSource = readFileSync(vertexPath);
+    std::string FragmentShaderSource = readFileSync(fragmentPath);
+    printf("Compiling shader : %s\n", vertexPath.c_str());
+    unsigned int VertexID;
+    CompileShader(VertexID, GL_VERTEX_SHADER, VertexShaderSource.c_str());
     
-    // Read the Vertex Shader code from the file
-    std::string VertexShaderCode;
-    std::ifstream VertexShaderStream(vertPath, std::ios::in);
-    if(VertexShaderStream.is_open()){
-      std::stringstream sstr;
-      sstr << VertexShaderStream.rdbuf();
-      VertexShaderCode = sstr.str();
-      VertexShaderStream.close();
-    }else{
-      printf("Impossible to open %s. Are you in the right directory ? Don't forget to read the FAQ !\n", vertPath.c_str());
-      getchar();
-      //return 0;
+    printf("Compiling shader : %s\n", fragmentPath.c_str());
+    unsigned int FragmentID;
+    CompileShader(FragmentID, GL_FRAGMENT_SHADER, FragmentShaderSource.c_str());
+    
+    printf("Linking program\n");
+    CompileProgram(program, {&VertexID, &FragmentID});
+  }
+  unsigned int program;
+  
+  static void CompileProgram(unsigned int &ProgramID, std::vector<unsigned int*> shaders){
+    ProgramID = glCreateProgram();
+    for(int i=0;i<shaders.size();i++){
+      glAttachShader(ProgramID, *(shaders[i]));
     }
+  	
+  	glLinkProgram(ProgramID);
     
-    // Read the Fragment Shader code from the file
-    std::string FragmentShaderCode;
-    std::ifstream FragmentShaderStream(fragPath, std::ios::in);
-    if(FragmentShaderStream.is_open()){
-      std::stringstream sstr;
-      sstr << FragmentShaderStream.rdbuf();
-      FragmentShaderCode = sstr.str();
-      FragmentShaderStream.close();
-    }
-    
-    GLint Result = GL_FALSE;
+    int Result = GL_FALSE;
     int InfoLogLength;
     
-    // Compile Vertex Shader
-    printf("Compiling shader : %s\n", vertPath.c_str());
-    char const * VertexSourcePointer = VertexShaderCode.c_str();
-    glShaderSource(VertexShaderID, 1, &VertexSourcePointer , NULL);
-    glCompileShader(VertexShaderID);
+  	// Check the program
+  	glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
+  	glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+  	if ( InfoLogLength > 0 ){
+  		std::vector<char> ProgramErrorMessage(InfoLogLength+1);
+  		glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
+  		printf("%s\n", &ProgramErrorMessage[0]);
+  	}
+  }
+  static void CompileShader(unsigned int &ShaderID, unsigned int type, const std::string& source){
+    ShaderID = glCreateShader(type);
     
-    // Check Vertex Shader
-    glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if ( InfoLogLength > 0 ){
-      std::vector<char> VertexShaderErrorMessage(InfoLogLength+1);
-      glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
-      printf("%s\n", &VertexShaderErrorMessage[0]);
-    }
-    
-    // Compile Fragment Shader
-    printf("Compiling shader : %s\n", fragPath.c_str());
-    char const * FragmentSourcePointer = FragmentShaderCode.c_str();
-    glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer , NULL);
-    glCompileShader(FragmentShaderID);
-    
-    // Check Fragment Shader
-    glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if ( InfoLogLength > 0 ){
-      std::vector<char> FragmentShaderErrorMessage(InfoLogLength+1);
-      glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
-      printf("%s\n", &FragmentShaderErrorMessage[0]);
-    }
-    
-    // Link the program
-    printf("Linking Shader\n");
-    ID = glCreateProgram();
-    glAttachShader(ID, VertexShaderID);
-    glAttachShader(ID, FragmentShaderID);
-    glLinkProgram(ID);
-    
-    // Check the program
-    glGetProgramiv(ID, GL_LINK_STATUS, &Result);
-    glGetProgramiv(ID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if ( InfoLogLength > 0 ){
-      std::vector<char> ProgramErrorMessage(InfoLogLength+1);
-      glGetProgramInfoLog(ID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
-      printf("%s\n", &ProgramErrorMessage[0]);
-    }
-    
-    glDetachShader(ID, VertexShaderID);
-    glDetachShader(ID, FragmentShaderID);
-    
-    glDeleteShader(VertexShaderID);
-    glDeleteShader(FragmentShaderID);
+    int Result = GL_FALSE;
+  	int InfoLogLength;
+
+  	// Compile Shader
+  	char const * sourcePointer = source.c_str();
+  	glShaderSource(ShaderID, 1, &sourcePointer , NULL);
+  	glCompileShader(ShaderID);
+
+  	// Check Vertex Shader
+  	glGetShaderiv(ShaderID, GL_COMPILE_STATUS, &Result);
+  	glGetShaderiv(ShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+  	if ( InfoLogLength > 0 ){
+  		std::vector<char> ShaderErrorMessage(InfoLogLength+1);
+  		glGetShaderInfoLog(ShaderID, InfoLogLength, NULL, &ShaderErrorMessage[0]);
+  		printf("%s\n", &ShaderErrorMessage[0]);
+  	}
   }
   
-  void use(){
-    glUseProgram(ID);
+  void Bind(){
+    glUseProgram(program);
+  }
+  int GetUniformLocation(const char* uniform_handle){
+    return glGetUniformLocation(program, uniform_handle);
   }
   
-  GLuint VAO, VBO;
-  void initPanel(){
-    //Init a panel that the shader can draw to (only call on one shader)
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-    
-    float vbodat[] = {
-      -1.0f, -1.0f,
-      1.0f, -1.0f,
-      -1.0f, 1.0f,
-      1.0f, -1.0f,
-      1.0f, 1.0f,
-      -1.0f, 1.0f
-    };
-    
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vbodat), vbodat, GL_STATIC_DRAW);
+  //#include "UniformFunctions.cpp" //Import uniform functions
+  //Primitive
+  void Uniform(int location, float toSend){
+    glUniform1f(location, toSend);
   }
-  void drawPanel(){
-    //Draw panel
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glVertexAttribPointer(
-       0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
-       2,                  // size
-       GL_FLOAT,           // type
-       GL_FALSE,           // normalized?
-       0,                  // stride
-       (void*)0            // array buffer offset
-    );
-    // Draw the triangle !
-    glDrawArrays(GL_TRIANGLES, 0, 6); // Starting from vertex 0; 3 vertices total -> 1 triangle
-    glDisableVertexAttribArray(0);
+  void Uniform(int location, int toSend){
+    glUniform1i(location, toSend);
   }
-  void setBool(const std::string &name, bool value) const
-  {         
-    glUniform1i(glGetUniformLocation(ID, name.c_str()), (int)value); 
+  void Uniform(int location, unsigned int toSend){
+    glUniform1ui(location, toSend);
   }
-  void setInt(const std::string &name, int value) const
-  { 
-    glUniform1i(glGetUniformLocation(ID, name.c_str()), value); 
-  }
-  void setFloat(const std::string &name, float value) const
-  { 
-    glUniform1f(glGetUniformLocation(ID, name.c_str()), value); 
-  } 
-  void setFloat2(const std::string &name, float value, float value2) const
-  { 
-    glUniform2f(glGetUniformLocation(ID, name.c_str()), value, value2); 
-  } 
-  void setDouble(const std::string &name, double value) const
-  { 
-    glUniform1d(glGetUniformLocation(ID, name.c_str()), value); 
-  }
-  void setDouble2(const std::string &name, double value, double value2) const
-  { 
-    glUniform2d(glGetUniformLocation(ID, name.c_str()), value, value2); 
-  }
+
 };

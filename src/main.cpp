@@ -1,7 +1,6 @@
 #include "Window.hpp"
-#include "Functions.hpp"
+#include "Shader.hpp"
 
-Shader* shader;
 Window* window;
 
 double rendZoom = 2;
@@ -83,36 +82,70 @@ void keyPressed(unsigned int key){
     window->setSize(600,600);
   }
 }
-void draw(){
-  //setColor(255,0,255);
-  //drawRect(100,100,500,500);
-  clear();
-  println("Sending zoom");
-  shader->setDouble("zoom", rendZoom);
-  println("Sending midx");
-  shader->setDouble("midX", midX);
-  println("Sending midy");
-  shader->setDouble("midY", midY);
-  println("Sending maxiter");
-  shader->setInt("maxIter", maxIter);
+
+unsigned int vao;
+Shader shader;
+
+unsigned int loc_zoom;
+unsigned int loc_midx;
+unsigned int loc_midy;
+unsigned int loc_maxiter;
+void setup(){
+  shader = Shader("../src/shaders/FractalShader.vert", "../src/shaders/FractalShader.frag");
+  //Make VertexArray for panel shader will render on.
+  glGenVertexArrays(1, &vao);
+  glBindVertexArray(vao);
+  float vbodat[] = {
+    -1.0f, -1.0f,
+    1.0f, -1.0f,
+    -1.0f, 1.0f,
+    1.0f, -1.0f,
+    1.0f, 1.0f,
+    -1.0f, 1.0f
+  };
+  unsigned int vbo;
+  glGenBuffers(1, &vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vbodat), vbodat, GL_STATIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(
+     0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
+     2,                  // size
+     GL_FLOAT,           // type
+     GL_FALSE,           // normalized?
+     0,                  // stride
+     (void*)0            // array buffer offset
+  );
   
-  shader->drawPanel();
+  shader.Bind();
+  loc_zoom = shader.GetUniformLocation("zoom");
+  loc_midx = shader.GetUniformLocation("midX");
+  loc_midy = shader.GetUniformLocation("midY");
+  loc_maxiter = shader.GetUniformLocation("maxIter");
+  glClearColor(0, 0, 0, 1);
+}
+void draw(){
+  glClear(GL_COLOR_BUFFER_BIT);
+  shader.Uniform(loc_zoom, (float)rendZoom);
+  shader.Uniform(loc_midx, (float)midX);
+  shader.Uniform(loc_midy, (float)midY);
+  shader.Uniform(loc_maxiter, maxIter);
+  
+  //Draw panel (there is only one VertexArray so no need to bind)
+  glDrawArrays(GL_TRIANGLES, 0, 6); //2 Triangles make a square (panel)
 }
 void exit(){
   std::cout << "User Exited Program\n";
 }
+
 int main(void){
   window = new Window(600,600, "Mandelbrot Fractal");
-  
-  shader = new Shader("shaders/FractalShader.vert", "shaders/FractalShader.frag");
-  shader->initPanel();
-  shader->use();
   
   window->mouseScrolled = mouseScrolled;
   window->mouseMoved = mouseMoved;
   window->keyPressed = keyPressed;
   window->mouseButton = mousePressed;
   window->onExit = exit;
-  
+  setup();
   window->loop(draw);
 }
