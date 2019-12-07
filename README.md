@@ -6,6 +6,7 @@ Mandelbrot fractal implemented with OpenGL Shaders
 mkdir build
 cd bulid
 cmake ..
+make
 ./Fractals
 ```
 Enjoy!
@@ -15,7 +16,7 @@ Scroll to zoom in and out
 
 Drag the canvas to move the fractal (fractal does *not* update in realtime)
 
-'r' to reset canvas
+'r' to reset to default zoom
 
 ## Contributing
 Pull requests are welcome. Changes may take awhile to notice review (also please open a issue)
